@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getGroqChatCompletion } from "../../../lib/groq";
 import { supabase } from "../../../lib/supabase";
+import { redis } from "../../../lib/redis";
 
 export const runtime = "nodejs";
 
@@ -15,26 +16,32 @@ export const POST = async (req) => {
       );
     }
 
-    const { data, error } = await supabase
-      .from("documents")
-      .select("extracted_text")
-      .eq("id", pdfId)
-      .single();
+    let context = await redis.get(pdfId);
 
-    if (error || !data) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
-    }
+    if (!context) {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("extracted_text")
+        .eq("id", pdfId)
+        .single();
 
-    const context = data.extracted_text;
+      if (error || !data) {
+        return NextResponse.json(
+          { error: "Document not found" },
+          { status: 404 }
+        );
+      }
 
-    if (!context.trim()) {
-      return NextResponse.json(
-        { error: "Document has no extractable text" },
-        { status: 400 }
-      );
+      context = data.extracted_text;
+
+      if (!context.trim()) {
+        return NextResponse.json(
+          { error: "Document has no extractable text" },
+          { status: 400 }
+        );
+      }
+
+      await redis.set(pdfId, context, { ex: 24 * 60 * 60 });
     }
 
     const MAX_CHARS = 6000;
