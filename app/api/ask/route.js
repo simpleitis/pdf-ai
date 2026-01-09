@@ -16,14 +16,17 @@ export const POST = async (req) => {
       );
     }
 
-    let context = await redis.get(pdfId);
+    const cached = await redis.get(pdfId);
+    let context = cached?.extracted_text;
 
     if (!context) {
       const { data, error } = await supabase
         .from("documents")
-        .select("extracted_text")
+        .select()
         .eq("id", pdfId)
         .single();
+
+      console.log(data);
 
       if (error || !data) {
         return NextResponse.json(
@@ -41,7 +44,15 @@ export const POST = async (req) => {
         );
       }
 
-      await redis.set(pdfId, context, { ex: 24 * 60 * 60 });
+      const redisData = {
+        extracted_text: data.extracted_text,
+        created_at: data.created_at,
+        user_id: data.user_id,
+        filename: data.filename,
+        id: data.id,
+      };
+
+      await redis.set(pdfId, redisData, { ex: 24 * 60 * 60 });
     }
 
     const MAX_CHARS = 6000;

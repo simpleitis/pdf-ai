@@ -45,6 +45,8 @@ export const POST = async (req) => {
 
     return NextResponse.json({
       documentId: inserted[0].id,
+      createdAt: inserted[0].created_at,
+      fileName: inserted[0].filename,
       message: "PDF uploaded",
     });
   } catch (err) {
