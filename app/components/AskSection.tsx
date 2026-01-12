@@ -19,7 +19,7 @@ export default function AskSection({ pdfId }: AskSectionProps) {
   const handleAskRequest = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!question.trim()) return;
+    if (isLoading || !question.trim()) return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -27,8 +27,6 @@ export default function AskSection({ pdfId }: AskSectionProps) {
       content: question,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setQuestion("");
     setIsLoading(true);
 
     try {
@@ -55,6 +53,8 @@ export default function AskSection({ pdfId }: AskSectionProps) {
       console.error("Error asking question:", error);
     } finally {
       setIsLoading(false);
+      setMessages((prev) => [...prev, userMessage]);
+      setQuestion("");
     }
   };
 
@@ -74,7 +74,7 @@ export default function AskSection({ pdfId }: AskSectionProps) {
       <MessageList messages={displayMessages} />
       <form
         onSubmit={handleAskRequest}
-        className="flex gap-2 px-32 py-10 w-full"
+        className="flex gap-4 px-32 py-10 w-full"
       >
         <Input
           type="text"
@@ -84,13 +84,14 @@ export default function AskSection({ pdfId }: AskSectionProps) {
           onChange={(e) => setQuestion(e.target.value)}
           disabled={isLoading}
         />
+
         <Button
           type="submit"
           variant="outline"
-          className="h-12 button-transition hover:bg-white hover:text-black"
+          className="h-12 w-20 button-transition hover:bg-white hover:text-black  disabled:pointer-events-auto disabled:cursor-not-allowed cursor-pointer"
           disabled={isLoading || !question.trim()}
         >
-          <SendHorizontal />
+          <SendHorizontal className="text-white" />
         </Button>
       </form>
     </div>
