@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabase } from "../../../lib/supabase";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const PDFParser = require("pdf2json");
 
 export const runtime = "nodejs";
 
@@ -16,39 +18,21 @@ export const POST = async (req) => {
       );
     }
 
-    const body = new FormData();
-    body.append("pdf", file, file.name);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const res = await fetch(`${process.env.DEV_NODE_URL}/upload`, {
-      method: "POST",
-      body,
+    const extractedText = await new Promise((resolve, reject) => {
+      const pdfParser = new PDFParser(null, 1);
+      pdfParser.on("pdfParser_dataError", (err) => reject(err.parserError));
+      pdfParser.on("pdfParser_dataReady", () => {
+        resolve(pdfParser.getRawTextContent());
+      });
+      pdfParser.parseBuffer(buffer);
     });
 
-    const data = await res.json();
+    
 
-    const { data: inserted, error } = await supabase
-      .from("documents")
-      .insert({
-        user_id: "demo-user",
-        filename: filename,
-        extracted_text: data.text,
-      })
-      .select();
-
-    if (error || !inserted?.length) {
-      console.error(error);
-      return NextResponse.json(
-        { error: "Failed to save document" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      documentId: inserted[0].id,
-      createdAt: inserted[0].created_at,
-      fileName: inserted[0].filename,
-      message: "PDF uploaded",
-    });
+    return NextResponse.json({ extractedText: extractedText ?? "no text" });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
